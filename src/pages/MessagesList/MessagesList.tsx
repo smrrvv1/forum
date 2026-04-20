@@ -1,56 +1,52 @@
-import {useEffect, useState} from 'react';
-import type {ApiMessage, IMessageFull} from '../../types.ts';
-import {axiosApi} from '../../axiosApi.ts';
+import {useEffect} from 'react';
+import type {ApiMessage, IMessageFull} from '../../types';
+import {axiosApi} from '../../axiosApi';
 import styles from './styles.module.css'
-import { useChatStore } from '../../chatStore.js'; 
-
+import { useChatStore } from '../../chatStore'; 
+import { ChatForm } from '../../components/ChatForm/ChatForm';
+import { Button, Card, CardContent, Typography } from '@mui/material';
 
 export const MessagesList = () => {
     const {messages, setMessages} = useChatStore();
 
-    useEffect(() => {
-        const getMessages = async() => {
-            try{
-                const response = await axiosApi<ApiMessage>('/messages.json')
-                const data = response.data
-
-                if (!data)  {
-                    return
-                }
-                const newMessages:IMessageFull[] = Object.keys(data).map(key=>{
-                    const newMessage = data[key]
-
-                    return{
-                        ...newMessage,
-                        id: key, 
-                    }
-                })
-                setMessages(newMessages)
-            } catch (e) {
-                console.log(e)
+    const getMessages = async () => {
+        try {
+            const response = await axiosApi.get<ApiMessage>('/messages.json')
+            if (response.data) {
+                const list: IMessageFull[] = Object.keys(response.data).map(key => ({
+                    ...response.data[key],
+                    id: key
+                }))
+                setMessages(list)
             }
+        } catch (e) {
+            console.error(e)
         }
-        getMessages()
+    }
 
-        const interval = setInterval(getMessages, 5000)
-        return () => {
-            clearInterval(interval)
-        }
+    const addLike = async (id: string, msg: IMessageFull) => {
+        await axiosApi.put(`/messages/${id}.json`, { ...msg, likes: (msg.likes || 0) + 1  })
+        await getMessages()
+    }
+
+    useEffect(() => {
+        getMessages()
+        const interval = setInterval(getMessages, 30000)
+        return () => clearInterval(interval)
     }, [])
 
-    return(
+    return (
         <div className={styles.container}>
-            {
-                messages.map(message => (
-                    <div key={message.id} className={styles.messageCard}>
-
-                        <h5>author:{message.author}</h5>
-                        <p>{message.message}</p>
-
-                    </div>
-                ))
-            }
-            
+            <ChatForm />
+            {messages.map(m => (
+                <Card key={m.id} sx={{ mb: 2 }}>
+                    <CardContent>
+                        <Typography variant="h6">{m.author}</Typography>
+                        <Typography>{m.message}</Typography>
+                        <Button onClick={() => addLike(m.id, m)}>Like: {m.likes || 0}</Button>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
     )
 }
