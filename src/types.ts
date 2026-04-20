@@ -5,7 +5,7 @@ export interface IMessage {
 }
 
 export interface IMessageFull extends IMessage {
-    id: message
+    id: string
 }
 
 export interface ApiMessage {
